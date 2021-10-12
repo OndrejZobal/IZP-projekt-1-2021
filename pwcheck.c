@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Comment or uncomment the following line to toggle debugging.
 #define DEBUG 1
 #define AUTHOR "Ondřej Zobal"
 #define VERSION "0.1"
@@ -49,10 +50,12 @@ int isStrInt(char *str) {
 int processArgs(int argc, char *argv[]) {
   int positionalArgTracker = 0;
   for (int i = 1; i < argc; i++) {
+    // Processing flags
     if (strComp(argv[i], "--stats")) {
       stats = true;
     }
 
+    // Processing positional arguments
     else {
       if (!isStrInt(argv[i])) {
         fprintf(stderr, "A positive number was expected in place of \"%s\"!\n",
@@ -98,7 +101,37 @@ int processArgs(int argc, char *argv[]) {
   return 0;
 }
 
-int processPassword(char *pass, int level, int param, char *uniqueChars,
+// TODO Likely doesn't even work.
+int countRepSubstrings(char *str, int length, int size) {
+  int repetitions = 0;
+
+  for (int i = 0; i < length - size; i++) {
+    bool identical = true;
+
+    for (int j = 0; j < length; j++) {
+      for (int k = 0; k < size; k++) {
+        if (i + j == k) {
+          continue;
+        }
+
+        if (str[i + j] != str[k]) {
+          printf("\n%d + %d = %d, %d\n", i, j, i + j, k);
+          identical = false;
+          break;
+        }
+      }
+    }
+
+    if (identical) {
+      repetitions++;
+    }
+  }
+
+  fprintf(stderr, "Chugnala %d\n", repetitions);
+  return repetitions;
+}
+
+int processPassword(char *pass, int level, int param, bool *uniqueChars,
                     int *shortest, int *average) {
   int length = 0;
   int upper = 0;
@@ -109,6 +142,8 @@ int processPassword(char *pass, int level, int param, char *uniqueChars,
 
   int repetition = 0;
   char lastChar = 0;
+
+  // Analysing the password.
   for (int i = 0; pass[i] != '\0' && pass[i] != '\n'; i++) {
     if (pass[i] >= 'a' && pass[i] <= 'z') {
       lower++;
@@ -119,6 +154,10 @@ int processPassword(char *pass, int level, int param, char *uniqueChars,
     } else if (pass[i] >= ' ' && pass[i] <= '~') {
       special++;
     }
+
+    // Processing Character Sequences
+    // Thanks to this approach a Sequence of 6 identical symbols will only
+    // count as 1 repetition when param is set to 2.
     // If current char is the same as the previous one.
     if (i != 0 && lastChar == pass[i]) {
       // Increment the repetition counter.
@@ -132,6 +171,7 @@ int processPassword(char *pass, int level, int param, char *uniqueChars,
       repetition = 0;
     }
     lastChar = pass[i];
+
     length++;
   }
 
@@ -146,23 +186,27 @@ int processPassword(char *pass, int level, int param, char *uniqueChars,
     return 0;
   }
 
-  if (level >= 1 && upper > 0 && lower > 0) {
+  if (level >= 1 && upper < 0 && lower < 0) {
+    printf("\nHelun1\n");
     return 1;
   }
-  if (level >= 2 && upper > param && lower > param && number > param &&
+  if (level >= 2 && upper < param && lower < param && number < param &&
       special > param) {
+    printf("\nHelun2\n");
     return 1;
   }
-  if (level >= 3 && repSequence == 0) {
+  if (level >= 3 && repSequence != 0) {
+    printf("\nHelun3\n");
     return 1;
   }
-  if (param >= 4 && repSequence == 0) {
-    // TODO Implement
-    return 0;
+  if (level == 4 && countRepSubstrings(pass, length, param)) {
+    return 1;
   }
 
   return 0;
 }
+
+void printStats() { return; }
 
 int main(int argc, char *argv[]) {
 #ifdef DEBUG
@@ -187,9 +231,20 @@ int main(int argc, char *argv[]) {
     counter++;
   }
 
+  int statShortest = -1;
+  int statAverage = -1;
+  bool statUniqueChars['~' - ' ' + 1];
+
   // TODO Validating individual passwords.
   // for every password
-  if (processPassword(password, level, param)) {
-    printf("%s", password);
+  if (!processPassword(password, level, param, statUniqueChars, &statShortest,
+                       &statAverage)) {
+    printf("Success: %s\n", password);
   }
+
+  /*
+  if (stats) {
+    printStats();
+  }
+*/
 }
