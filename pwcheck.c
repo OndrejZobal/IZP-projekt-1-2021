@@ -174,12 +174,11 @@ int processArgs(int argc, char *argv[]) {
 ** @return 1 if the message contains substrings, 0 if it doesn't.
 */
 int countRepSubstrings(char *str, int length, int size) {
-
   // This loops moves the substring offset.
-  for (int i = 0; i < length - size; i++) {
+  for (int i = 0; i < length - size + 1; i++) {
 
     // This one will be iterating through the str
-    for (int j = 0; j < length - size; j++) {
+    for (int j = 0; j < length - size + 1; j++) {
       int identical = 0;
       // And this one will be comparing the individual substrings to the rest of
       // the strings.
@@ -188,8 +187,6 @@ int countRepSubstrings(char *str, int length, int size) {
           continue;
         }
 
-        // fprintf(stdout, "%d + %d = %d; %d + %d = %d\n", i, k, i + k, j, k,
-        //        j + k);
         if (str[i + k] == str[j + k]) {
           identical++;
         }
@@ -283,10 +280,8 @@ bool processPassword(char *pass, int level, int param, bool *uniqueChars,
     *shortest = length;
   }
 #ifdef DEBUG
-  fprintf(stderr,
-          "Length: %d, Upeer: %d, Lower: %d, Numbers: %d, Special: %d, "
-          "Repetitions: %d\n",
-          length, upper, lower, number, special, repSequence);
+  fprintf(stderr, "Length: %d, Upeer: %d, Lower: %d,, Repetitions: %d\n",
+          length, upper, lower, repSequence);
 #endif
 
   if (level >= 1 && (upper < 1 || lower < 1)) {
@@ -358,7 +353,7 @@ int main(int argc, char *argv[]) {
   char ch;
   while ((ch = getchar()) != EOF) {
     char password[MAX_PASSWORD_LENGTH];
-    if (ch == '\n' || counter == MAX_PASSWORD_LENGTH) {
+    if (ch == '\n' || counter == MAX_PASSWORD_LENGTH - 1) {
       password[counter] = '\0';
 #ifdef DEBUG
       fprintf(stderr, "Testing: %sEND\n", password);
