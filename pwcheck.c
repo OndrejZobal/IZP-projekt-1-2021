@@ -10,7 +10,6 @@
 // Comment or uncomment the following line to toggle debugging.
 //#define DEBUG 1
 #define AUTHOR "Ondřej Zobal"
-#define VERSION "0.1"
 
 const int POSITIONAL_ARGS_TOTAL = 2;
 const int MAX_PASSWORD_LENGTH = 100;
@@ -104,7 +103,7 @@ int parseParam(char str[]) {
 ** @param argv array of command line argumets.
 ** @return an error code.
 */
-int processArgs(int argc, char *argv[]) {
+bool processArgs(int argc, char *argv[]) {
   int positionalArgTracker = 0;
   for (int i = 1; i < argc; i++) {
     // Processing flags
@@ -114,22 +113,22 @@ int processArgs(int argc, char *argv[]) {
       } else if (strComp(argv[i], "-l")) {
         // Acounting for the value that has to follow the flag
         if (++i >= argc) {
-          return 1;
+          return false;
         }
         if ((level = parseLevel(argv[i])) == -1) {
-          return 1;
+          return false;
         }
       } else if (strComp(argv[i], "-p")) {
         // Acounting for the value that has to follow the flag
         if (++i >= argc) {
-          return 1;
+          return false;
         }
         if ((param = parseParam(argv[i])) == -1) {
-          return 1;
+          return false;
         }
       } else {
         fprintf(stderr, "Unknown flag: %s", argv[i]);
-        return 2;
+        return false;
       }
       continue;
     }
@@ -138,7 +137,7 @@ int processArgs(int argc, char *argv[]) {
     if (!isStrInt(argv[i])) {
       fprintf(stderr, "A positive number was expected in place of \"%s\"!\n",
               argv[i]);
-      return 2;
+      return false;
     }
 
     switch (positionalArgTracker) {
@@ -151,19 +150,8 @@ int processArgs(int argc, char *argv[]) {
     }
     ++positionalArgTracker;
   }
-  /*
-  if (positionalArgTracker == POSITIONAL_ARGS_TOTAL) {
-    // Finsihed looping through all given arguments and no values are
-    // missing.
-    return 0;
-  }
 
-  fprintf(stderr, "You can set custom values with: '%s level param'\n",
-          argv[0]);
-  fprintf(stderr, "Using default values, level: %d, param: %d\n", level, param);
-  return 0;
-*/
-  return 0;
+  return true;
 }
 
 /*
@@ -201,56 +189,52 @@ int countRepSubstrings(char *str, int length, int size) {
 }
 
 /*
-** Chechks if the password passes the requirements.
+** This function analyses the nature of the password.
+** @param lower An address to an int containing the lowest length of password
 ** @param pass The password to be tested.
-** @param level The level of password reuqirements
-** @param param A suplemental parameter
 ** @param uniqueChars A pointer to an array tracking printable ascii codes that
-*were seen before.
-** @param shortest A pointer to var holidng the length of the shortest passowrd
-*seen yet.
-** @param averageSum The sum of all password lengths.
-** @param averageCount The amount of passwords added to the averageSum variable.
-** @return returns true if the password passed the requirements and false if it
-*did not.
+** @param lower An Address to int where the amount of lowercase characters seen
+*in pass will be stored
+** @param upper An Address to int where the amount of uppercase characters seen
+*in pass will be stored
+** @param charGroupCount An Address to int where the amount of different
+*character groups seen im password.
+** @param length An Address to int where the length of the password will be
+*stored.
+** @param length An Address to int where the count of repeating characters in
+*the password will be stored.
+** @param reqSequence The number of groups of repeating characters
 */
-bool processPassword(char *pass, int level, int param, bool *uniqueChars,
-                     int *shortest, int *averageSum, int *averageCount) {
-  int length = 0;
-  int upper = 0;
-  int lower = 0;
-  int repSequence = 0;
-
-  int repetition = 0;
-  char lastChar = 0;
-
+void analyzePassword(char *pass, bool *uniqueChars, int *lower, int *upper,
+                     int *charGroupCount, int *length, int *repSequence) {
   bool hasUpper, hasLower, hasNum, hasSpecial = false;
-  int charGroupCount = 0;
+  char lastChar = 0;
+  int repetition = 0;
 
   // Analysing the password.
   for (int i = 0; pass[i] != '\0' && pass[i] != '\n'; i++) {
     uniqueChars[((int)pass[i]) - MIN_ALLOWED_CHAR] = true;
     if (pass[i] >= 'a' && pass[i] <= 'z') {
-      lower++;
+      (*lower)++;
       if (!hasLower) {
         hasLower = true;
-        charGroupCount++;
+        (*charGroupCount)++;
       }
     } else if (pass[i] >= 'A' && pass[i] <= 'Z') {
-      upper++;
+      (*upper)++;
       if (!hasUpper) {
         hasUpper = true;
-        charGroupCount++;
+        (*charGroupCount)++;
       }
     } else if (pass[i] >= '0' && pass[i] <= '9') {
       if (!hasNum) {
         hasNum = true;
-        charGroupCount++;
+        (*charGroupCount)++;
       }
     } else if (pass[i] >= ' ' && pass[i] <= '~') {
       if (!hasSpecial) {
         hasSpecial = true;
-        charGroupCount++;
+        (*charGroupCount)++;
       }
     }
 
@@ -264,15 +248,45 @@ bool processPassword(char *pass, int level, int param, bool *uniqueChars,
       // Check if repetition length reached param.
       if (repetition + 1 == param) {
         // Increment the counter of repetition sequences.
-        repSequence++;
+        (*repSequence)++;
       }
     } else {
       repetition = 0;
     }
     lastChar = pass[i];
 
-    length++;
+    (*length)++;
   }
+}
+
+/*
+** Chechks if the password passes the requirements.
+** @param pass The password to be tested.
+** @param level The level of password reuqirements
+** @param param A suplemental parameter
+** @param uniqueChars A pointer to an array tracking printable ascii codes that
+*were seen before.
+** @param shortest A pointer to var holidng the length of the shortest passowrd
+*seen yet.
+** @param averageSum The sum of all password lengths.
+** @param averageCount The amount of passwords added to the averageSum variable.
+** @return returns true if the password passed the requirements and false if it
+*did not.
+*/
+bool processPassword(char pass[], int level, int param, bool *uniqueChars,
+                     int *shortest, int *averageSum, int *averageCount) {
+  int length = 0;
+  int upper = 0;
+  int lower = 0;
+  int repSequence = 0;
+
+  // int repetition = 0;
+  // char lastChar = 0;
+
+  int charGroupCount = 0;
+
+  analyzePassword(pass, uniqueChars, &lower, &upper, &charGroupCount, &length,
+                  &repSequence);
 
   *averageSum += length;
   *averageCount += 1;
@@ -323,41 +337,31 @@ void printStats(bool uniques[], int shortest, int avgSum, int avgCount) {
 }
 
 int main(int argc, char *argv[]) {
-#ifdef DEBUG
-  fprintf(stderr, "!THIS IS A DEBUG BUILD!\n");
-#endif
   // Obtaining user's parameters.
-  int exitCode = processArgs(argc, argv);
-#ifdef DEBUG
-  fprintf(stderr, "level: %d, param: %d, stats: %d\n", level, param, stats);
-#endif
-  if (exitCode) {
-    return exitCode;
+  if (!processArgs(argc, argv)) {
+    return 1;
   }
 
   int statShortest = 0;
   int statAverageSum = 0;
   int statAverageCount = 0;
   bool statUniqueChars[UNIQUE_CHAR_ARRAY_LENGTH];
-  // The array already contains data when it get's created and I am not sure
-  // why. It should be memory corruption, but there is nothing that could cause
-  // memoryc corruption that runs before it and also the rest of the memory
-  // seems fine as well
+
   for (int i = 0; i < UNIQUE_CHAR_ARRAY_LENGTH; i++) {
     statUniqueChars[i] = false;
   }
 
-  // TODO Validating individual passwords.
-  // for every password
   int counter = 0;
   char ch;
   while ((ch = getchar()) != EOF) {
-    char password[MAX_PASSWORD_LENGTH];
+    char password[MAX_PASSWORD_LENGTH + 1];
     if (ch == '\n' || counter == MAX_PASSWORD_LENGTH - 1) {
       password[counter] = '\0';
+
 #ifdef DEBUG
       fprintf(stderr, "Testing: %sEND\n", password);
 #endif
+
       if (processPassword(password, level, param, statUniqueChars,
                           &statShortest, &statAverageSum, &statAverageCount)) {
         printf("%s\n", password);
