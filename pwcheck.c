@@ -10,19 +10,17 @@
 // Comment or uncomment the following line to toggle debugging.
 //#define DEBUG 1
 
-const int POSITIONAL_ARGS_TOTAL = 2;
-const int MAX_PASSWORD_LENGTH = 100;
-const char MIN_ALLOWED_CHAR = ' ';
-const char MAX_ALLOWED_CHAR = '~';
-const char UNIQUE_CHAR_ARRAY_LENGTH = MAX_ALLOWED_CHAR - MIN_ALLOWED_CHAR + 1;
-
-bool stats = false;
+#define POSITIONAL_ARGS_TOTAL 2
+#define MAX_PASSWORD_LENGTH 100
+#define MIN_ALLOWED_CHAR ' '
+#define MAX_ALLOWED_CHAR '~'
+#define UNIQUE_CHAR_ARRAY_LENGTH (MAX_ALLOWED_CHAR - MIN_ALLOWED_CHAR + 1)
 
 /*
 ** A function for comparing strings.
 ** @param first first string to be compared.
 ** @param second second string to be compared.
-** @return 1 if strings are identical, 0 if thay differ.
+** @return 1 if strings are identical, 0 if they differ.
 */
 int strComp(char *first, char *second) {
   for (int i = 0; 1; i++) {
@@ -75,7 +73,6 @@ int parseLevel(char str[]) {
 */
 int parseParam(char str[]) {
   int param = atoi(str);
-  // Todo edge cases for level and param combinations.
   if (param < 1) {
     fprintf(stderr, "The given PARAM value (%d) is not positive! Using 1...\n",
             param);
@@ -87,18 +84,18 @@ int parseParam(char str[]) {
 ** A function that sets the program's variables according to the users
 *arguments.
 ** @param argc Number of indexes in the argv array.
-** @param argv array of command line argumets.
+** @param argv array of command line arguments.
 ** @return an error code.
 */
-bool processArgs(int argc, char *argv[], int *level, int *param) {
+bool processArgs(int argc, char *argv[], int *level, int *param, bool *stats) {
   int positionalArgTracker = 0;
   for (int i = 1; i < argc; i++) {
     // Processing flags
     if (argv[i][0] == '-') {
       if (strComp(argv[i], "--stats")) {
-        stats = true;
+        (*stats) = true;
       } else if (strComp(argv[i], "-l")) {
-        // Acounting for the value that has to follow the flag
+        // Accounting for the value that has to follow the flag
         if (++i >= argc) {
           return false;
         }
@@ -106,7 +103,7 @@ bool processArgs(int argc, char *argv[], int *level, int *param) {
           return false;
         }
       } else if (strComp(argv[i], "-p")) {
-        // Acounting for the value that has to follow the flag
+        // Accounting for the value that has to follow the flag
         if (++i >= argc) {
           return false;
         }
@@ -179,13 +176,13 @@ int countRepSubstrings(char *str, int length, int size) {
 ** This function analyses the nature of the password.
 ** @param lower An address to an int containing the lowest length of password
 ** @param pass The password to be tested.
-** @param uniqueChars A pointer to an array tracking printable ascii codes that
+** @param uniqueChars A pointer to an array tracking printable ASCII codes that
 ** @param lower An Address to int where the amount of lowercase characters seen
 *in pass will be stored
 ** @param upper An Address to int where the amount of uppercase characters seen
 *in pass will be stored
 ** @param charGroupCount An Address to int where the amount of different
-*character groups seen im password.
+*character groups seen in password.
 ** @param length An Address to int where the length of the password will be
 *stored.
 ** @param length An Address to int where the count of repeating characters in
@@ -253,11 +250,11 @@ void analyzePassword(char *pass, int param, bool *uniqueChars, int *lower,
 /*
 ** Chechks if the password passes the requirements.
 ** @param pass The password to be tested.
-** @param level The level of password reuqirements
-** @param param A suplemental parameter
-** @param uniqueChars A pointer to an array tracking printable ascii codes that
+** @param level The level of password requirements
+** @param param An additional parameter
+** @param uniqueChars A pointer to an array tracking printable ASCII codes that
 *were seen before.
-** @param shortest A pointer to var holidng the length of the shortest passowrd
+** @param shortest A pointer to var holding the length of the shortest password
 *seen yet.
 ** @param averageSum The sum of all password lengths.
 ** @param averageCount The amount of passwords added to the averageSum variable.
@@ -282,7 +279,7 @@ bool processPassword(char pass[], int level, int param, bool *uniqueChars,
     *shortest = length;
   }
 #ifdef DEBUG
-  fprintf(stderr, "Length: %d, Upeer: %d, Lower: %d,, Repetitions: %d\n",
+  fprintf(stderr, "Length: %d, Upper: %d, Lower: %d,, Repetitions: %d\n",
           length, upper, lower, repSequence);
 #endif
 
@@ -304,7 +301,7 @@ bool processPassword(char pass[], int level, int param, bool *uniqueChars,
 
 /*
 ** Prints the stats summary to stdout.
-** @param uniques an array of bools parallel to the ASCII values of printable
+** @param uniques an array of booleans parallel to the ASCII values of printable
 *characters seen before in passwords.
 ** @param shortest the shortest password seen.
 ** @param averageSum The sum of all password lengths.
@@ -312,24 +309,30 @@ bool processPassword(char pass[], int level, int param, bool *uniqueChars,
 */
 void printStats(bool uniques[], int shortest, int avgSum, int avgCount) {
   int uniqueCount = 0;
+  float avg = 0;
   for (int i = 0; i < UNIQUE_CHAR_ARRAY_LENGTH; i++) {
     if (uniques[i]) {
       uniqueCount++;
     }
   }
 
+  if (avgCount != 0) {
+    avg = ((float)avgSum) / avgCount;
+  }
+
   fprintf(stdout, "Statistika:\n");
   fprintf(stdout,
           "Ruznych znaku: %d\nMinimalni delka: %d\nPrumerna delka: %.1f\n",
-          uniqueCount, shortest, ((float)avgSum) / avgCount);
+          uniqueCount, shortest, avg);
 }
 
 int main(int argc, char *argv[]) {
   int level = 1;
   int param = 1;
+  bool stats = false;
 
   // Obtaining user's parameters.
-  if (!processArgs(argc, argv, &param, &level)) {
+  if (!processArgs(argc, argv, &level, &param, &stats)) {
     return 1;
   }
 
@@ -348,18 +351,12 @@ int main(int argc, char *argv[]) {
   while ((intCh = getchar()) != EOF) {
     char ch = intCh;
 
-    if (counter == MAX_PASSWORD_LENGTH + 1) {
+    if (counter == MAX_PASSWORD_LENGTH - 1 && ch != '\n') {
+      fprintf(stderr, "Password cannot be longer than 100 characters!");
       return 1;
     }
 
     if (ch == '\n') {
-      /*
-      int temp = ch;
-      if (temp == EOF) {
-        printf("%d", temp);
-      }
-      */
-
       password[counter] = '\0';
 
 #ifdef DEBUG
@@ -372,14 +369,10 @@ int main(int argc, char *argv[]) {
       }
 
       counter = 0;
-      // for (int i = 0; i < MAX_PASSWORD_LENGTH; i++) {
-      //   password[i] = '\0';
-      // }
     } else {
       password[counter] = ch;
       counter++;
     }
-    // fprintf(stdout, "char: %c, couter: %d\n", ch, counter);
   }
 
   if (stats) {
