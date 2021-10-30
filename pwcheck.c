@@ -9,27 +9,12 @@
 
 // Comment or uncomment the following line to toggle debugging.
 //#define DEBUG 1
-#define AUTHOR "Ondřej Zobal"
 
 const int POSITIONAL_ARGS_TOTAL = 2;
 const int MAX_PASSWORD_LENGTH = 100;
 const char MIN_ALLOWED_CHAR = ' ';
 const char MAX_ALLOWED_CHAR = '~';
 const char UNIQUE_CHAR_ARRAY_LENGTH = MAX_ALLOWED_CHAR - MIN_ALLOWED_CHAR + 1;
-
-// Whit the values set to -1 it is easier to see whether the argument processing
-// function works as it should.
-#ifdef DEBUG
-int level = -1;
-int param = -1;
-#endif
-
-// When not debuging the value will be set to 1 which will act as the default it
-// the user doesn't wish to change it.
-#ifndef DEBUG
-int level = 1;
-int param = 1;
-#endif
 
 bool stats = false;
 
@@ -70,12 +55,15 @@ int isStrInt(char *str) {
 */
 int parseLevel(char str[]) {
   int level = atoi(str);
-  if (level < 1 || level > 4) {
+  if (level < 1) {
     fprintf(stderr,
             "The given level value (%d) has to be between 1 and 4! Using "
             "1...\n",
             level);
-    // return -1;
+  }
+
+  if (level > 4) {
+    return 4;
   }
   return level;
 }
@@ -91,7 +79,6 @@ int parseParam(char str[]) {
   if (param < 1) {
     fprintf(stderr, "The given PARAM value (%d) is not positive! Using 1...\n",
             param);
-    // return -1;
   }
   return param;
 }
@@ -103,7 +90,7 @@ int parseParam(char str[]) {
 ** @param argv array of command line argumets.
 ** @return an error code.
 */
-bool processArgs(int argc, char *argv[]) {
+bool processArgs(int argc, char *argv[], int *level, int *param) {
   int positionalArgTracker = 0;
   for (int i = 1; i < argc; i++) {
     // Processing flags
@@ -115,7 +102,7 @@ bool processArgs(int argc, char *argv[]) {
         if (++i >= argc) {
           return false;
         }
-        if ((level = parseLevel(argv[i])) == -1) {
+        if (((*level) = parseLevel(argv[i])) == -1) {
           return false;
         }
       } else if (strComp(argv[i], "-p")) {
@@ -123,7 +110,7 @@ bool processArgs(int argc, char *argv[]) {
         if (++i >= argc) {
           return false;
         }
-        if ((param = parseParam(argv[i])) == -1) {
+        if (((*param) = parseParam(argv[i])) == -1) {
           return false;
         }
       } else {
@@ -142,10 +129,10 @@ bool processArgs(int argc, char *argv[]) {
 
     switch (positionalArgTracker) {
     case 0:
-      level = parseLevel(argv[i]);
+      (*level) = parseLevel(argv[i]);
       break;
     case 1:
-      param = parseParam(argv[i]);
+      (*param) = parseParam(argv[i]);
       break;
     }
     ++positionalArgTracker;
@@ -205,9 +192,13 @@ int countRepSubstrings(char *str, int length, int size) {
 *the password will be stored.
 ** @param reqSequence The number of groups of repeating characters
 */
-void analyzePassword(char *pass, bool *uniqueChars, int *lower, int *upper,
-                     int *charGroupCount, int *length, int *repSequence) {
-  bool hasUpper, hasLower, hasNum, hasSpecial = false;
+void analyzePassword(char *pass, int param, bool *uniqueChars, int *lower,
+                     int *upper, int *charGroupCount, int *length,
+                     int *repSequence) {
+  bool hasUpper = false;
+  bool hasLower = false;
+  bool hasNum = false;
+  bool hasSpecial = false;
   char lastChar = 0;
   int repetition = 0;
 
@@ -280,13 +271,10 @@ bool processPassword(char pass[], int level, int param, bool *uniqueChars,
   int lower = 0;
   int repSequence = 0;
 
-  // int repetition = 0;
-  // char lastChar = 0;
-
   int charGroupCount = 0;
 
-  analyzePassword(pass, uniqueChars, &lower, &upper, &charGroupCount, &length,
-                  &repSequence);
+  analyzePassword(pass, param, uniqueChars, &lower, &upper, &charGroupCount,
+                  &length, &repSequence);
 
   *averageSum += length;
   *averageCount += 1;
@@ -301,7 +289,7 @@ bool processPassword(char pass[], int level, int param, bool *uniqueChars,
   if (level >= 1 && (upper < 1 || lower < 1)) {
     return false;
   }
-  if (level >= 2 && charGroupCount < param) {
+  if (level >= 2 && charGroupCount < (param > 4 ? 4 : param)) {
     return false;
   }
   if (level >= 3 && (repSequence != 0 || param == 1)) {
@@ -337,8 +325,11 @@ void printStats(bool uniques[], int shortest, int avgSum, int avgCount) {
 }
 
 int main(int argc, char *argv[]) {
+  int level = 1;
+  int param = 1;
+
   // Obtaining user's parameters.
-  if (!processArgs(argc, argv)) {
+  if (!processArgs(argc, argv, &param, &level)) {
     return 1;
   }
 
@@ -352,10 +343,23 @@ int main(int argc, char *argv[]) {
   }
 
   int counter = 0;
-  char ch;
-  while ((ch = getchar()) != EOF) {
-    char password[MAX_PASSWORD_LENGTH + 1];
-    if (ch == '\n' || counter == MAX_PASSWORD_LENGTH - 1) {
+  int intCh = 0;
+  char password[MAX_PASSWORD_LENGTH + 1];
+  while ((intCh = getchar()) != EOF) {
+    char ch = intCh;
+
+    if (counter == MAX_PASSWORD_LENGTH + 1) {
+      return 1;
+    }
+
+    if (ch == '\n') {
+      /*
+      int temp = ch;
+      if (temp == EOF) {
+        printf("%d", temp);
+      }
+      */
+
       password[counter] = '\0';
 
 #ifdef DEBUG
@@ -364,15 +368,18 @@ int main(int argc, char *argv[]) {
 
       if (processPassword(password, level, param, statUniqueChars,
                           &statShortest, &statAverageSum, &statAverageCount)) {
-        printf("%s\n", password);
+        fprintf(stdout, "%s\n", password);
       }
 
       counter = 0;
-      password[counter] = '\0';
+      // for (int i = 0; i < MAX_PASSWORD_LENGTH; i++) {
+      //   password[i] = '\0';
+      // }
     } else {
       password[counter] = ch;
       counter++;
     }
+    // fprintf(stdout, "char: %c, couter: %d\n", ch, counter);
   }
 
   if (stats) {
